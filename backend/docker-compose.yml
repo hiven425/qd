@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  checkinhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-change-me}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-bytes-key-here!!}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
