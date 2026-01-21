@@ -16,8 +16,28 @@ class Scheduler:
         self.worker = Worker()
 
     async def start(self):
-        """启动调度器"""
+        """启动调度器并加载所有站点任务"""
         self.scheduler.start()
+        
+        # 从数据库加载所有启用的站点并调度
+        await self._load_all_sites()
+
+    async def _load_all_sites(self):
+        """从数据库加载所有启用站点并调度"""
+        from app.db.session import async_session
+        from sqlalchemy import select
+        
+        async with async_session() as session:
+            result = await session.execute(
+                select(Site).where(Site.enabled == True, Site.paused == False)
+            )
+            sites = result.scalars().all()
+            
+            for site in sites:
+                self.schedule_site(site)
+                print(f"[Scheduler] 已调度站点: {site.name} ({site.id})", flush=True)
+            
+            print(f"[Scheduler] 启动完成，共加载 {len(sites)} 个站点任务", flush=True)
 
     async def stop(self):
         """停止调度器"""
@@ -53,6 +73,7 @@ class Scheduler:
                 args=[site.id],
                 id=job_id
             )
+            print(f"[Scheduler] 📅 调度站点 [{site.name}]: 类型=dailyAfter, 下次执行={next_run.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
 
         elif schedule_type == 'cron':
             # Cron 表达式
@@ -65,6 +86,8 @@ class Scheduler:
                 args=[site.id],
                 id=job_id
             )
+            job = self.scheduler.get_job(job_id)
+            print(f"[Scheduler] 📅 调度站点 [{site.name}]: 类型=cron, 表达式={cron_expr}, 下次执行={job.next_run_time if job else 'N/A'}", flush=True)
 
     def unschedule_site(self, site_id: UUID):
         """取消站点调度"""
@@ -90,7 +113,27 @@ class Scheduler:
 
     async def _run_site_job(self, site_id: UUID):
         """执行站点任务"""
-        await self.worker.run_site(site_id, trigger='scheduled')
+        from datetime import datetime as dt
+        
+        start_time = dt.now()
+        print(f"[Scheduler] {start_time.strftime('%Y-%m-%d %H:%M:%S')} 开始执行任务: site_id={site_id}", flush=True)
+        
+        try:
+            result = await self.worker.run_site(site_id, trigger='scheduled')
+            end_time = dt.now()
+            duration = (end_time - start_time).total_seconds()
+            
+            if result.get('status') == 'success':
+                print(f"[Scheduler] ✅ 任务成功: site_id={site_id}, run_status={result.get('run_status')}, 耗时={duration:.2f}s", flush=True)
+            elif result.get('status') == 'skipped':
+                print(f"[Scheduler] ⏭️ 任务跳过: site_id={site_id}, reason={result.get('message')}", flush=True)
+            else:
+                print(f"[Scheduler] ❌ 任务失败: site_id={site_id}, error={result.get('message')}, 耗时={duration:.2f}s", flush=True)
+                
+        except Exception as e:
+            end_time = dt.now()
+            duration = (end_time - start_time).total_seconds()
+            print(f"[Scheduler] ❌ 任务异常: site_id={site_id}, exception={str(e)}, 耗时={duration:.2f}s", flush=True)
 
         # 重新调度下一次执行
         await self._reschedule_site(site_id)
@@ -109,6 +152,12 @@ class Scheduler:
                 # 仅 DailyAfter 模式需要重新调度（Cron 模式由 APScheduler 自动处理）
                 if schedule.get('type') == 'dailyAfter':
                     self.schedule_site(site)
+                    # 获取下次运行时间
+                    job = self.scheduler.get_job(f"site_{site_id}")
+                    if job:
+                        print(f"[Scheduler] 📅 已重新调度: {site.name}, 下次执行={job.next_run_time}", flush=True)
+            elif site and site.paused:
+                print(f"[Scheduler] ⏸️ 站点已暂停，不再调度: {site.name}", flush=True)
 
 # 全局调度器实例
 scheduler = Scheduler()

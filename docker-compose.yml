@@ -5,6 +5,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      - TZ=Asia/Shanghai
       - ADMIN_TOKEN=${ADMIN_TOKEN:-change-me}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-bytes-key-here!!}
       - WEBHOOK_URL=${WEBHOOK_URL:-}
@@ -24,7 +25,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "9096:80"
     depends_on:
       - backend
     restart: unless-stopped
