@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import MainLayout from './layout/MainLayout'
 import Dashboard from './pages/Dashboard'
 import SiteEdit from './pages/SiteEdit'
+import Settings from './pages/Settings'
 
 export const router = createBrowserRouter([
     {
@@ -18,7 +19,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: '/settings',
-                element: <div>设置页面（开发中）</div>
+                element: <Settings />
             }
         ],
     },

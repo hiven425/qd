@@ -27,9 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.api.routers import health, sites, runs, har
+from app.api.routers import health, sites, runs, har, system
 
 app.include_router(health.router, prefix="/api")
 app.include_router(sites.router, prefix="/api")
 app.include_router(runs.router, prefix="/api")
 app.include_router(har.router, prefix="/api")
+app.include_router(system.router, prefix="/api")
