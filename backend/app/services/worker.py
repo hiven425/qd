@@ -31,7 +31,7 @@ class Worker:
             run = Run(
                 site_id=site_id,
                 status='RUNNING',
-                started_at=datetime.utcnow()
+                started_at=datetime.now()
             )
             session.add(run)
             await session.commit()
@@ -47,7 +47,7 @@ class Worker:
 
                 # 更新 Run 记录
                 run.status = flow_result.status
-                run.finished_at = datetime.utcnow()
+                run.finished_at = datetime.now()
                 run.summary = flow_result.summary
                 run.steps = flow_result.steps
                 run.auth_failed = flow_result.auth_failed
@@ -75,7 +75,7 @@ class Worker:
             except Exception as e:
                 # 更新 Run 记录为失败
                 run.status = 'FAILED'
-                run.finished_at = datetime.utcnow()
+                run.finished_at = datetime.now()
                 run.summary = f'执行异常: {str(e)}'
                 await session.commit()
 
