@@ -127,6 +127,20 @@ class FlowEngine:
             except:
                 step_result['response'] = redact_response(response.text)
 
+            # 5.5 默认状态码检查（即使没有 expect 配置也检查）
+            if response.status_code in [401, 403]:
+                step_result['status'] = 'FAILED'
+                step_result['error'] = f'认证失败: HTTP {response.status_code}'
+                step_result['auth_failed'] = True
+                return step_result
+            elif response.status_code >= 400:
+                # 允许用户通过 expect.allowErrorStatus 跳过此检查
+                expect = step.get('expect', {})
+                if not expect.get('allowErrorStatus', False):
+                    step_result['status'] = 'FAILED'
+                    step_result['error'] = f'HTTP 请求失败: {response.status_code}'
+                    return step_result
+
             # 6. 验证 expect
             expect = step.get('expect')
             if expect:
